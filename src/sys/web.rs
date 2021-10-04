@@ -12,7 +12,7 @@ use self::web_sys::{Document, HtmlCanvasElement, HtmlElement, Window as WebWindo
 use color::Color;
 use event::*;
 use renderer::Renderer;
-use Mode;
+use ::{DisplayInfo, Mode};
 use WindowFlag;
 
 pub fn get_display_size() -> Result<(u32, u32), String> {
@@ -27,6 +27,25 @@ pub fn get_display_size() -> Result<(u32, u32), String> {
         .as_f64()
         .unwrap_or(0.0) as u32;
     Ok((width, height))
+}
+
+pub fn get_display_details() -> Result<Vec<DisplayInfo>, String> {
+    let (width, height) = get_display_size()?;
+    let ratio = window()?
+        .device_pixel_ratio()
+        .map_err(|_| "Cannot read device pixel ratio".to_string())?
+        .as_f64()
+        .unwrap_or(1.0) as f32;
+
+    Ok(vec![DisplayInfo {
+        name: "window".to_string(),
+        id: 0,
+        x: 0,
+        y: 0,
+        width,
+        height,
+        dpi: 96.0 * ratio,
+    }])
 }
 
 #[allow(dead_code)]

@@ -5,6 +5,11 @@ use orbclient::{Color, EventOption, GraphicsPath, Mode, Renderer, Window};
 fn main() {
     let (width, height) = orbclient::get_display_size().unwrap();
 
+    let display_details = orbclient::get_display_details().unwrap();
+    for display in display_details {
+        println!("{:?}", display);
+    }
+
     let mut window = Window::new(
         (width as i32) / 4,
         (height as i32) / 4,

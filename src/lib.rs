@@ -15,7 +15,7 @@ pub use event::*;
 pub use graphicspath::GraphicsPath;
 pub use renderer::Renderer;
 #[cfg(not(feature = "no_std"))]
-pub use sys::{get_display_size, EventIter, Window};
+pub use sys::{get_display_size, get_display_details, EventIter, Window};
 
 #[cfg(target_arch = "wasm32")]
 pub use sys::{animation_loop, log};
@@ -36,6 +36,17 @@ pub enum WindowFlag {
     Resizable,
     Transparent,
     Unclosable,
+}
+
+#[derive(Clone, Debug)]
+pub struct DisplayInfo {
+    pub name: String,
+    pub id: u32,
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub dpi: f32,
 }
 
 #[derive(Clone, Copy, Debug)]

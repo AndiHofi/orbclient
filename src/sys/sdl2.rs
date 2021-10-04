@@ -7,8 +7,7 @@ use std::{mem, ptr, slice};
 use color::Color;
 use event::*;
 use renderer::Renderer;
-use Mode;
-use WindowFlag;
+use ::{DisplayInfo, Mode, WindowFlag};
 
 static SDL_USAGES: AtomicUsize = AtomicUsize::new(0);
 /// SDL2 Context
@@ -21,6 +20,7 @@ static mut EVENT_PUMP: *mut sdl2::EventPump = ptr::null_mut();
 //Call this when the CTX needs to be used is created
 #[inline]
 unsafe fn init() {
+    // TODO - AndiHofi: I think this should be Acquire
     if SDL_USAGES.fetch_add(1, Ordering::Relaxed) == 0 {
         SDL_CTX = Box::into_raw(Box::new(sdl2::init().unwrap()));
         VIDEO_CTX = Box::into_raw(Box::new((&mut *SDL_CTX).video().unwrap()));
@@ -41,11 +41,62 @@ unsafe fn cleanup() {
 }
 
 pub fn get_display_size() -> Result<(u32, u32), String> {
-    unsafe { init() };
+    let _guard = InitGuard::init();
+
     unsafe { &*VIDEO_CTX }
         .display_bounds(0)
         .map(|rect| (rect.width(), rect.height()))
         .map_err(|err| format!("{}", err))
+}
+
+struct InitGuard;
+impl InitGuard {
+    fn init() -> Self {
+        unsafe { init() };
+
+        InitGuard
+    }
+}
+impl Drop for InitGuard {
+    fn drop(&mut self) {
+        unsafe { cleanup() };
+    }
+}
+
+pub fn get_display_details() -> Result<Vec<DisplayInfo>, String> {
+    // Use Drop to call cleanup() when returning
+    let _guard = InitGuard::init();
+
+    let video_ctx = unsafe { &*VIDEO_CTX };
+    let display_count = video_ctx.num_video_displays()?;
+
+    let display_count = if display_count > 0 {
+        display_count as usize
+    } else {
+        return Err("No available displays".to_string());
+    };
+
+    let mut result = Vec::with_capacity(display_count);
+
+    for display_index in 0..display_count as i32 {
+        let (_, dpi_h, dpi_v) = video_ctx.display_dpi(display_index)?;
+        let bounds = video_ctx.display_bounds(display_index)?;
+        let name = video_ctx
+            .display_name(display_index)
+            .unwrap_or_else(|_| "unknown".to_string());
+
+        result.push(DisplayInfo {
+            name,
+            id: display_index as u32,
+            x: bounds.x(),
+            y: bounds.y(),
+            width: bounds.width(),
+            height: bounds.height(),
+            dpi: (dpi_h + dpi_v) * 0.5,
+        });
+    }
+
+    Ok(result)
 }
 
 /// A window
@@ -71,14 +122,8 @@ pub struct Window {
     mouse_relative: bool,
     /// Content of the last drop (file | text) operation
     drop_content: RefCell<Option<String>>,
-}
 
-impl Drop for Window {
-    fn drop(&mut self) {
-        unsafe {
-            cleanup();
-        }
-    }
+    _drop: InitGuard,
 }
 
 impl Renderer for Window {
@@ -146,7 +191,7 @@ impl Window {
         flags: &[WindowFlag],
     ) -> Option<Self> {
         //Insure that init has been called
-        unsafe { init() };
+        let guard = InitGuard::init();
 
         let mut window_async = false;
         //TODO: Use z-order
@@ -200,6 +245,7 @@ impl Window {
                 inner: window.into_canvas().software().build().unwrap(),
                 mouse_relative: false,
                 drop_content: RefCell::new(None),
+                _drop: guard,
             }),
             Err(_) => None,
         }

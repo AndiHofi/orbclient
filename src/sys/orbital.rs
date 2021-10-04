@@ -9,8 +9,7 @@ use std::{env, mem, slice, thread};
 use color::Color;
 use event::{Event, EVENT_RESIZE};
 use renderer::Renderer;
-use Mode;
-use WindowFlag;
+use ::{DisplayInfo, Mode, WindowFlag};
 
 pub fn get_display_size() -> Result<(u32, u32), String> {
     let display_path = env::var("DISPLAY").or(Err("DISPLAY not set"))?;
@@ -37,6 +36,20 @@ pub fn get_display_size() -> Result<(u32, u32), String> {
         }
         Err(err) => Err(format!("{}", err)),
     }
+}
+
+pub fn get_display_details() -> Result<Vec<DisplayInfo>, String> {
+    let (width, height) = get_display_size()?;
+
+    Ok(vec![DisplayInfo {
+        name: "window".to_string(),
+        id: 0,
+        x: 0,
+        y: 0,
+        width,
+        height,
+        dpi: 96.0,
+    }])
 }
 
 /// A window
